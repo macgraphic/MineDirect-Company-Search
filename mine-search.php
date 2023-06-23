@@ -13,55 +13,36 @@ if (!defined('ABSPATH')) {
 	exit; // Exit if accessed directly.
 }
 
+// function mine_custom_archive_query($query)
+// {
+// 	if (!is_admin() && $query->is_main_query()) {
+// 		if ($query->is_post_type_archive('company')) {
+// 			$sort_option = isset($_GET['company_sort']) ? $_GET['company_sort'] : 'sort_updated';
 
+// 			switch ($sort_option) {
+// 				case 'sort_updated':
+// 					$query->set('meta_key', 'latest_update');
+// 					$query->set('orderby', 'meta_value');
+// 					$query->set('order', 'DESC');
+// 					break;
 
-function mine_company_sort_options()
-{
-	ob_start();
-	?>
-	<label for="company-sort">Sort Companies:</label>
-	<select id="company-sort" name="company_sort">
-		<option value="sort_updated">Latest Update (Default)</option>
-		<option value="sort_titlea">Company Name A-Z</option>
-		<option value="sort_titlez">Company Name Z-A</option>
-	</select>
-	<?php
-	return ob_get_clean();
-}
+// 				case 'sort_titlea':
+// 					$query->set('orderby', 'title');
+// 					$query->set('order', 'ASC');
+// 					break;
 
-function mine_custom_archive_query($query)
-{
-	// error_log('Custom archive query function is being called.');
-	
-	if (!is_admin() && $query->is_main_query()) {
-		if ($query->is_post_type_archive('company')) {
-			$sort_option = isset($_GET['company_sort']) ? $_GET['company_sort'] : 'sort_updated';
+// 				case 'sort_titlez':
+// 					$query->set('orderby', 'title');
+// 					$query->set('order', 'DESC');
+// 					break;
 
-			switch ($sort_option) {
-				case 'sort_updated':
-					$query->set('meta_key', 'latest_update');
-					$query->set('orderby', 'meta_value');
-					$query->set('order', 'DESC');
-					break;
-
-				case 'sort_titlea':
-					$query->set('orderby', 'title');
-					$query->set('order', 'ASC');
-					break;
-
-				case 'sort_titlez':
-					$query->set('orderby', 'title');
-					$query->set('order', 'DESC');
-					break;
-
-				default:
-					break;
-			}
-		}
-	}
-}
-add_action('pre_get_posts', 'mine_custom_archive_query');
-
+// 				default:
+// 					break;
+// 			}
+// 		}
+// 	}
+// }
+// add_action('pre_get_posts', 'mine_custom_archive_query');
 
 function mineral_generate_filters() {
 	ob_start();
@@ -69,8 +50,24 @@ function mineral_generate_filters() {
 	$data_to_js = array(
 		'minerals_taxonomy' => $mineral_tax,
 	);
-	
 	$mineral_tax_terms = get_terms($mineral_tax, 'orderby=name&hide_empty=1');
+?>
+
+
+<?php 
+	function mine_company_sort_options()
+	{
+		ob_start();
+		?>
+		<label for="company-sort">Sort Companies:</label>
+		<select id="company-sort" name="company_sort">
+			<option value="sort_updated">Latest Update (Default)</option>
+			<option value="sort_titlea">Company Name A-Z</option>
+			<option value="sort_titlez">Company Name Z-A</option>
+		</select>
+		<?php
+		return ob_get_clean();
+	}
 ?>
 
 	<nav class="widget inner-padding widget_block widget_search mineral-menu mined-filter-menu" aria-label="<?php _e('Secondary menu'); ?>" role="navigation" itemtype="https://schema.org/SiteNavigationElement" itemscope>
@@ -113,8 +110,6 @@ function mineral_generate_filters() {
 	return ob_get_clean();
 }
 
-
-
 // Enqueue JavaScript file for AJAX handling and the assets for the filtering
 function company_search_enqueue_scripts()
 {
@@ -126,18 +121,18 @@ function company_search_enqueue_scripts()
 	
 	$php_vars = array(
 		'minerals_taxonomy' => $minerals_taxonomy,
-		'ajaxurl' => admin_url('admin-ajax.php'),
-		'nonce' => wp_create_nonce('company_search_nonce'), // Add nonce creation
+		'ajaxurl' => rest_url('../wp-json/wp/v2/'),
+		'nonce' => wp_create_nonce('company_sort_nonce'), // Add nonce creation
 	);
 	wp_localize_script( 'company-search', 'php_vars', $php_vars );
 }
 add_action('wp_enqueue_scripts', 'company_search_enqueue_scripts');
 
 // AJAX callback function to handle sorting
-function company_search_ajax_callback() {
+function company_search_ajax_callback( WP_REST_Request $request ) {
 
 	// Verify the AJAX nonce for security
-	$nonce = isset($_POST['nonce']) ? $_POST['nonce'] : '';
+	$nonce = $request->get_header('X-WP-Nonce');
 	if (!wp_verify_nonce($nonce, 'company_search_nonce')) {
 		wp_send_json_error('Invalid nonce');
 	}
@@ -151,6 +146,7 @@ function company_search_ajax_callback() {
 	// Query the posts based on the selected sort option
 	$args = array(
 		'post_type' => 'company', // Replace 'company' with your actual post type slug
+		'meta_key'  => 'latest_update',
 		'orderby'   => 'meta_value', // Set the appropriate sorting parameters based on the sort option
 		'order'     => 'DESC',
 		// Add any additional query parameters as needed
@@ -173,4 +169,5 @@ function company_search_ajax_callback() {
 }
 add_action('wp_ajax_company_search', 'company_search_ajax_callback');
 add_action('wp_ajax_nopriv_company_search', 'company_search_ajax_callback');
+
 
